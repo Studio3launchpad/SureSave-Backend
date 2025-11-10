@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>{% block subject %}{% endblock %}</title>
+  <style>
+    body { background: #fffbea; font-family: Arial, sans-serif; color: #333; margin: 0; padding: 0; }
+    .container { max-width: 600px; margin: 40px auto; background: white; border-radius: 10px;
+      box-shadow: 0 3px 10px rgba(0,0,0,0.1); padding: 30px; }
+    .btn { background: #ff6f61; color: white; padding: 10px 18px; text-decoration: none;
+      border-radius: 6px; display: inline-block; }
+    h1 { color: #008080; }
+    .footer { font-size: 12px; color: #777; margin-top: 40px; text-align: center; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>SureSave</h1>
+    {% block content %}{% endblock %}
+    <div class="footer">© {{ current_year }} SureSave. All rights reserved.</div>
+  </div>
+</body>
+</html>

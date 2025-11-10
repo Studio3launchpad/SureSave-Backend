@@ -12,8 +12,11 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 
 from pathlib import Path
 import os
+from datetime import timedelta
 from dotenv import load_dotenv
 load_dotenv()
+print("EMAIL_HOST_USER:", os.getenv("EMAIL_HOST_USER"))
+
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -48,6 +51,7 @@ INSTALLED_APPS = [
     "dj_rest_auth",
     "allauth",
     "allauth.account",
+    "allauth.socialaccount",
     "dj_rest_auth.registration",
     "rest_framework_simplejwt",
     # Local apps
@@ -71,7 +75,7 @@ ROOT_URLCONF = "suresave.urls"
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
-        "DIRS": [],
+        "DIRS": [BASE_DIR / "templates"],
         "APP_DIRS": True,
         "OPTIONS": {
             "context_processors": [
@@ -143,19 +147,77 @@ STATIC_URL = "static/"
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 # My Configurations
+AUTH_USER_MODEL = "users.CustomUser"
+SITE_ID = 1
+# Allow logging in with either email or phone number by using a custom auth backend
+AUTHENTICATION_BACKENDS = [
+    # custom backend: tries email first, then phone number
+    "users.backends.EmailOrPhoneBackend",
+    # keep Django's default for admin/site and fallback
+    "django.contrib.auth.backends.ModelBackend",
+]
+# Django REST Framework and drf-spectacular settings
 REST_FRAMEWORK = {
-    # YOUR SETTINGS
-    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
-
-    'DEFAULT_AUTHENTICATION_CLASSES': (
-        'rest_framework_simplejwt.authentication.JWTAuthentication',
-    )
+    "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
+    "DEFAULT_AUTHENTICATION_CLASSES": (
+        "rest_framework_simplejwt.authentication.JWTAuthentication",
+    ),
+    "DEFAULT_PERMISSION_CLASSES": (
+        "rest_framework.permissions.IsAuthenticated",
+        "django_filters.rest_framework.DjangoFilterBackend",
+        "rest_framework.filters.SearchFilter",
+    ),
+    "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.LimitOffsetPagination",
+    "PAGE_SIZE": 5,
+    'EXCEPTION_HANDLER': 'rest_framework.views.exception_handler',
 }
 
+# dj-rest-auth settings
+REST_AUTH = {
+    'USE_JWT': True,
+    'JWT_AUTH_COOKIE': 'my-app-auth',
+    'JWT_AUTH_REFRESH_COOKIE': 'my-refresh-token',
+    'REGISTER_SERIALIZER': 'api.serializers.CustomRegisterSerializer',
+    'LOGIN_SERIALIZER': 'api.serializers.CustomLoginSerializer',
+}
+
+REST_AUTH_REGISTER_SERIALIZERS = {
+    "REGISTER_SERIALIZER": "api.serializers.CustomRegisterSerializer"
+}
+
+SIMPLE_JWT = {
+    "ACCESS_TOKEN_LIFETIME": timedelta(hours=3),
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=1),
+    "AUTH_HEADER_TYPES": ("Bearer",),
+}
+
+# Allauth new settings
+ACCOUNT_LOGIN_METHODS = ["email"]
+ACCOUNT_SIGNUP_FIELDS = ["email*", "password1*", "password2*"]
+ACCOUNT_EMAIL_VERIFICATION = 'mandatory'
+ACCOUNT_USER_MODEL_USERNAME_FIELD = None  # <--- important
+ACCOUNT_CONFIRM_EMAIL_ON_GET = True
+
 SPECTACULAR_SETTINGS = {
-    'TITLE': 'Your Project API',
+    'TITLE': 'SureSave API',
     'DESCRIPTION': 'Your project description',
     'VERSION': '1.0.0',
     'SERVE_INCLUDE_SCHEMA': False,
     # OTHER SETTINGS
 }
+
+# Email backend settings (for development, using console backend)
+EMAIL_BACKEND = os.getenv("EMAIL_BACKEND")
+EMAIL_HOST = os.getenv("HOST_EMAIL")
+EMAIL_PORT = os.getenv("EMAIL_PORT")
+EMAIL_USE_TLS = os.getenv("EMAIL_USE_TLS")
+EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER")
+EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD")
+DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
+EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+
+LOGIN_REDIRECT_URL = "/" 
+ACCOUNT_EMAIL_SUBJECT_PREFIX = "[SureSave] "
+ACCOUNT_EMAIL_CONFIRMATION_TEMPLATE = "account/email/email_confirmation_message.html"
+ACCOUNT_PASSWORD_RESET_TEMPLATE = "account/email/password_reset_message.html"
+

@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html>
+  <body style="font-family: Arial, sans-serif;">
+    <h2>Welcome to SureSave!</h2>
+    <p>Hi {{ user.first_name|default:user.email }},</p>
+    <p>
+      Please verify your email address by clicking the button below:
+    </p>
+    <p>
+      <a href="{{ activate_url }}" 
+         style="background: #008080; color: white; padding: 10px 15px; 
+                text-decoration: none; border-radius: 6px;">
+        Verify Email
+      </a>
+    </p>
+    <p>Thanks,<br>The SureSave Team</p>
+  </body>
+</html>
