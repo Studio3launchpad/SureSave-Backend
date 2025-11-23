@@ -15,16 +15,20 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
         SUPPORT = "SUPPORT", _("Support")
     username = None
     email = models.EmailField(_("email address"), unique=True)
-    phone_number = models.CharField(
-        _("phone number"), max_length=15, unique=True)
-    full_name = models.CharField(_("first name"), max_length=30)
-    is_verified = models.BooleanField(_("verified"), default=False)
-    is_active = models.BooleanField(_("active"), default=True)
-    is_deleted = models.BooleanField(_("deleted"), default=False)
-    is_staff = models.BooleanField(_("staff status"), default=False)
-    date_joined = models.DateTimeField(_("date joined"), auto_now_add=True)
-    role = models.CharField(
-        _("role"), max_length=10, choices=Roles.choices, default=Roles.USER
+    phone_number = models.CharField( max_length=15, unique=True)
+    full_name = models.CharField(max_length=30)
+    total_savings = models.DecimalField(
+        max_digits=12, decimal_places=2, default=0.00
+    )
+    langage_preference = models.CharField(max_length=10, default="en"
+    )
+    
+    is_verified = models.BooleanField(default=False)
+    is_active = models.BooleanField(default=True)
+    is_deleted = models.BooleanField(default=False)
+    is_staff = models.BooleanField(default=False)
+    date_joined = models.DateTimeField(auto_now_add=True)
+    role = models.CharField(max_length=10, choices=Roles.choices, default=Roles.USER
     )
 
     objects = CustomUserManager()
@@ -48,7 +52,18 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
         # Normalize phone number before saving to keep storage consistent
         if self.phone_number:
             self.phone_number = self.normalize_phone(self.phone_number)
+
+            if self.is_superuser:
+                self.role = self.Roles.ADMIN
+                self.is_staff = True
+                self.is_verified = True
+
         super().save(*args, **kwargs)
+
+    def delete(self, using=None, keep_parents=False):
+        self.is_deleted = True
+        self.is_active = False
+        self.save()
 
 
 class UserProfile(models.Model):

@@ -15,7 +15,7 @@ import os
 from datetime import timedelta
 from dotenv import load_dotenv
 load_dotenv()
-print("EMAIL_HOST_USER:", os.getenv("EMAIL_HOST_USER"))
+# print("EMAIL_HOST_USER:", os.getenv("EMAIL_HOST_USER"))
 
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -30,7 +30,8 @@ SECRET_KEY = os.getenv("SECRET_KEY")
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.getenv("DEBUG") == "True"
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ["yourdomain.com", "www.yourdomain.com", "127.0.0.1", "localhost"]
+
 
 
 # Application definition
@@ -56,6 +57,9 @@ INSTALLED_APPS = [
     "rest_framework_simplejwt",
     # Local apps
     "users",
+    "transactions",
+    "savingplans",
+    "notifications",
 ]
 
 MIDDLEWARE = [
@@ -198,9 +202,14 @@ ACCOUNT_EMAIL_VERIFICATION = 'mandatory'
 ACCOUNT_USER_MODEL_USERNAME_FIELD = None  # <--- important
 ACCOUNT_CONFIRM_EMAIL_ON_GET = True
 
+# When a user clicks the email confirmation link, redirect instead of
+# rendering a template. Adjust these to your frontend routes if needed.
+ACCOUNT_EMAIL_CONFIRMATION_ANONYMOUS_REDIRECT_URL = "/email-confirmed/"
+ACCOUNT_EMAIL_CONFIRMATION_AUTHENTICATED_REDIRECT_URL = "/email-confirmed/"
+
 SPECTACULAR_SETTINGS = {
     'TITLE': 'SureSave API',
-    'DESCRIPTION': 'Your project description',
+    'DESCRIPTION': 'It is a digital savings app designed specificaily tailors',
     'VERSION': '1.0.0',
     'SERVE_INCLUDE_SCHEMA': False,
     # OTHER SETTINGS
@@ -214,10 +223,9 @@ EMAIL_USE_TLS = os.getenv("EMAIL_USE_TLS")
 EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER")
 EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD")
 DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
-EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+#EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 
-LOGIN_REDIRECT_URL = "/" 
+LOGIN_REDIRECT_URL = "/"
 ACCOUNT_EMAIL_SUBJECT_PREFIX = "[SureSave] "
 ACCOUNT_EMAIL_CONFIRMATION_TEMPLATE = "account/email/email_confirmation_message.html"
 ACCOUNT_PASSWORD_RESET_TEMPLATE = "account/email/password_reset_message.html"
-

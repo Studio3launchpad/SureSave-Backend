@@ -1,6 +1,7 @@
 from django.contrib.auth.models import BaseUserManager
 from django.utils.translation import gettext_lazy as _
 import re
+from django.db import models
 
 
 class CustomUserManager(BaseUserManager):
@@ -8,6 +9,12 @@ class CustomUserManager(BaseUserManager):
     Custom user manager where email or phone_number is the unique identifiers
     for authentication instead of usernames.
     """
+    class UserQuerySet(models.QuerySet):
+        def active(self):
+            return self.filter(is_deleted=False)
+
+    def get_queryset(self):
+        return self.UserQuerySet(self.model, using=self._db).active()
 
     def normalize_phone(self, phone_number: str) -> str:
         """Return a digits-only phone number string (or empty string if None)."""
@@ -25,10 +32,16 @@ class CustomUserManager(BaseUserManager):
         phone_number = self.normalize_phone(phone_number)
         if not phone_number:
             raise ValueError(_("The phone number must be set"))
+        role = extra_fields.get('role', 'USER')
+        extra_fields['role'] = role
         user = self.model(
             email=email, phone_number=phone_number, full_name=full_name, **extra_fields
         )
         user.set_password(password)
+        if role in ['ADMIN', 'SUPPORT']:
+            user.is_staff = True
+        else:
+            user.is_staff = False
         user.save()
         return user
 
@@ -39,7 +52,6 @@ class CustomUserManager(BaseUserManager):
         extra_fields.setdefault("is_staff", True)
         extra_fields.setdefault("is_superuser", True)
         extra_fields.setdefault("is_active", True)
-
         if extra_fields.get("is_staff") is not True:
             raise ValueError(_("Superuser must have is_staff=True."))
         if extra_fields.get("is_superuser") is not True:
