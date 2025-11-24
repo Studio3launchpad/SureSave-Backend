@@ -2,7 +2,7 @@
 <html>
   <body style="font-family: Arial, sans-serif;">
     <h2>Welcome to SureSave!</h2>
-    <p>Hi {{ user.first_name|default:user.email }},</p>
+    <p>Hi {{ user.full_name|default:user.email }},</p>
     <p>
       Please verify your email address by clicking the button below:
     </p>
