@@ -1,81 +1,79 @@
 from django.db import models
 from django.conf import settings
+from django.conf import settings
+from decimal import Decimal
+
+User = settings.AUTH_USER_MODEL
 
 class SavingPlan(models.Model):
-    class PlanType(models.TextChoices):
-        BASIC = "CASUAL", "casual"
-        PREMIUM = "GOAL_GETTER", "goal_getter"
-        GOLD = "SHOWCASE", "showcase"
+    PLAN_TYPES = [
+        ("flex", "Flexible"),
+        ("target", "Target"),
+        ("vault", "Locked"),
+        ("group", "Group"),
+    ]
+
     name = models.CharField(max_length=255)
     description = models.TextField()
-    plan_type = models.CharField(
-        max_length=100,
-        choices=PlanType.choices,
-        default=PlanType.BASIC,
-    )
-    min_amount = models.DecimalField(max_digits=10, decimal_places=2)
-    max_amount = models.DecimalField(max_digits=10, decimal_places=2)
-    duration_day = models.IntegerField(blank=True, null=True)
-    interest_rate = models.DecimalField(max_digits=5, decimal_places=2)
+    plan_type = models.CharField(max_length=20, choices=PLAN_TYPES)
+    min_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    max_amount = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+    interest_rate = models.DecimalField(max_digits=5, decimal_places=2)   # e.g. 10.50%
+
     created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
         return self.name
 
 class UserSavingPlan(models.Model):
-    user = models.ForeignKey(
-        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="saving_plans"
-    )
-    plan = models.ForeignKey(
-        SavingPlan, on_delete=models.CASCADE, related_name="user_saving_plans"
-    )
-    amount = models.DecimalField(max_digits=10, decimal_places=2)
-    start_date = models.DateField()
-    end_date = models.DateField()
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    plan = models.ForeignKey(SavingPlan, on_delete=models.CASCADE)
+    
+    amount = models.DecimalField(max_digits=12, decimal_places=2)
+    current_balance = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+
+    start_date = models.DateField(auto_now_add=True)
+    end_date = models.DateField(null=True, blank=True)
+
     is_active = models.BooleanField(default=True)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
-        return f"{self.user.email} - {self.saving_plan.name}"
+        return f"{self.user.email} - {self.plan.name}"
     
 
 class SavingsGoal(models.Model):
-    class StatusChoices(models.TextChoices):
-        ACTIVE = 'ACTIVE', 'Active',
-        COMPLETED = 'COMPLETED', 'Completed',
-        CANCELED = 'CANCELED', 'Canceled',
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
 
-    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='goals')
-    name = models.CharField(max_length=255)
-    target_amount = models.DecimalField(max_digits=12, decimal_places=2)
-    saved_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
+    title = models.CharField(max_length=255)
+    target_amount = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal("0.00"))
+    saved_amount = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal("0.00"))
+
     target_date = models.DateField()
-    status = models.CharField(
-        max_length=100,
-        choices=StatusChoices,
-        default=StatusChoices.ACTIVE
-    )
     is_public = models.BooleanField(default=False)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
 
+    STATUS_CHOICES = [
+        ("active", "Active"),
+        ("completed", "Completed"),
+        ("cancelled", "Cancelled"),
+    ]
+    WEEK_DAY = [
+        ('monday', 'Monday'),
+        ('tuesday', 'Tuesday'),
+        ('wednesday', 'Wednesday'),
+        ('thursday', 'Thursday'),
+        ('friday', 'Friday'),
+        ('saturday', 'Saturday'),
+        ('sunday', 'Sunday'),
+    ]
+    week_day = models.CharField(max_length=20, choices=WEEK_DAY, default='monday')
+    image = models.ImageField(upload_to='savings_goals/', blank=True, null=True)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="active")
+
+    created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        return f"{self.user.email} - {self.name}"
-    
-class BvnModel(models.Model):
-    user = models.OneToOneField(
-        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="bvn"
-    )
-    bvn_number = models.CharField(max_length=11, unique=True)
-    is_verified = models.BooleanField(default=False)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
+        return self.title    
 
-    def __str__(self):
-        return f"{self.user.email} - {self.bvn_number}"
     
 class BankAccountModel(models.Model):
     user = models.ForeignKey(
@@ -92,36 +90,95 @@ class BankAccountModel(models.Model):
         return f"{self.user.email} - {self.bank_name} ({self.account_number})"
     
 class GroupSavingPlan(models.Model):
-    name = models.CharField(max_length=255)
-    description = models.TextField()
-    target_amount = models.DecimalField(max_digits=12, decimal_places=2)
-    contribution_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
-    cycle = models.CharField(max_length=20, choices=[
+    CYCLES = [
         ("daily", "Daily"),
         ("weekly", "Weekly"),
         ("monthly", "Monthly"),
-    ], default="monthly")
-    created_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.CASCADE,
-        related_name="created_groups"
-    )
+    ]
+    WEEK_DAY = [
+        ('monday', 'Monday'),
+        ('tuesday', 'Tuesday'),
+        ('wednesday', 'Wednesday'),
+        ('thursday', 'Thursday'),
+        ('friday', 'Friday'),
+        ('saturday', 'Saturday'),
+        ('sunday', 'Sunday'),
+    ]
+
+    created_by = models.ForeignKey(User, on_delete=models.CASCADE, related_name="created_groups")
+
+    name = models.CharField(max_length=255)
+    description = models.TextField()
+
+    contribution_cycle = models.CharField(max_length=10, choices=CYCLES)
+    week_day = models.CharField(max_length=10, choices=WEEK_DAY, default='monday')
+    contribution_amount = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal("0.00"))
+    target_amount = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal("0.00"), null=True, blank=True)
+    image = models.ImageField(upload_to='group_saving_plans/', blank=True, null=True)
+
     created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
         return self.name
 
+class AutoSavingSchedule(models.Model):
+    FREQUENCY = [
+        ("daily", "Daily"),
+        ("weekly", "Weekly"),
+        ("monthly", "Monthly"),
+    ]
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    goal = models.ForeignKey(SavingsGoal, on_delete=models.CASCADE, null=True, blank=True)
+    user_plan = models.ForeignKey(UserSavingPlan, on_delete=models.CASCADE, null=True, blank=True)
+
+    # Only one of the two should be filled
+
+    amount = models.DecimalField(max_digits=12, decimal_places=2)
+    frequency = models.CharField(max_length=20, choices=FREQUENCY)
+
+    weekday = models.CharField(
+        max_length=10,
+        choices=[
+            ("monday", "Monday"),
+            ("tuesday", "Tuesday"),
+            ("wednesday", "Wednesday"),
+            ("thursday", "Thursday"),
+            ("friday", "Friday"),
+            ("saturday", "Saturday"),
+            ("sunday", "Sunday"),
+        ],
+        null=True,
+        blank=True,
+    )
+
+    time_of_day = models.TimeField(default="00:00")
+
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.user.email} schedule - {self.frequency}"
+
+
 
 class GroupMember(models.Model):
-    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
-    group = models.ForeignKey(GroupSavingPlan, on_delete=models.CASCADE)
-    joined_at = models.DateTimeField(auto_now_add=True)
-    amount_contributed = models.DecimalField(max_digits=12, decimal_places=2, default=0)
-    role = models.CharField(max_length=20, choices=[
-        ("member", "Member"),
+    ROLE = [
         ("admin", "Admin"),
-    ], default="member")
+        ("member", "Member"),
+    ]
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    group = models.ForeignKey(GroupSavingPlan, on_delete=models.CASCADE, related_name="members")
+
+    role = models.CharField(max_length=20, choices=ROLE, default="member")
+    joined_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ("user", "group")
+
+    def __str__(self):
+        return f"{self.user.email} - {self.group.name}"
 
     def __str__(self):
         return f"{self.user} in {self.group}"
@@ -148,11 +205,45 @@ class GroupMember(models.Model):
             role="admin"
         )
         return group
+    
 class GroupContribution(models.Model):
-    group = models.ForeignKey(GroupSavingPlan, on_delete=models.CASCADE, related_name="contributions")
-    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    member = models.ForeignKey(GroupMember, on_delete=models.CASCADE)
+    group = models.ForeignKey(GroupSavingPlan, on_delete=models.CASCADE)
+
     amount = models.DecimalField(max_digits=12, decimal_places=2)
-    contributed_at = models.DateTimeField(auto_now_add=True)
+    date_contributed = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        return f"{self.user} contributed {self.amount} to {self.group}"
+        return f"{self.member.user.email} contributed {self.amount}"
+
+
+class Wallet(models.Model):
+    user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="wallet")
+    balance = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
+    currency = models.CharField(max_length=10, default="NGN")
+
+    def __str__(self):
+        return f"{self.user.email} Wallet"
+
+
+class Transaction(models.Model):
+    TRANSACTION_TYPES = [
+        ('deposit', 'Deposit'),
+        ('withdrawal', 'Withdrawal'),
+        ('transfer', 'Transfer'),
+    ]
+
+    wallet = models.ForeignKey(Wallet, on_delete=models.CASCADE, related_name="transactions")
+    amount = models.DecimalField(max_digits=12, decimal_places=2)
+    type = models.CharField(max_length=20, choices=TRANSACTION_TYPES)
+    reference = models.CharField(max_length=255, unique=True)
+    description = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    # For transfers
+    receiver_wallet = models.ForeignKey(
+        Wallet, on_delete=models.SET_NULL, null=True, blank=True, related_name="received_transfers"
+    )
+
+    def __str__(self):
+        return f"{self.type} - {self.amount} - {self.reference}"
