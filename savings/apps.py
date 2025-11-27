@@ -1,9 +1,9 @@
 from django.apps import AppConfig
 
 
-class SavingplansConfig(AppConfig):
+class SavingsConfig(AppConfig):
     default_auto_field = "django.db.models.BigAutoField"
-    name = "savingplans"
+    name = "savings"
 
     def ready(self):
-        import savingplans.signals
+        import savings.signals 

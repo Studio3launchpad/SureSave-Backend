@@ -10,33 +10,35 @@ User = settings.AUTH_USER_MODEL
 
 class CustomUser(AbstractBaseUser, PermissionsMixin):
     class Roles(models.TextChoices):
-        USER = "USER", _("User")
-        ADMIN = "ADMIN", _("Admin")
-        SUPPORT = "SUPPORT", _("Support")
+        USER = "USER", "User"
+        ADMIN = "ADMIN", "Admin"
+        SUPPORT = "SUPPORT", "Support"
     username = None
     email = models.EmailField(_("email address"), unique=True)
-    phone_number = models.CharField( max_length=15, unique=True)
-    full_name = models.CharField(max_length=30)
+    frist_name = models.CharField(max_length=30)
+    last_name = models.CharField(max_length=30)
+    phone_number = models.CharField(max_length=15, unique=True)
     total_savings = models.DecimalField(
         max_digits=12, decimal_places=2, default=0.00
     )
     langage_preference = models.CharField(max_length=10, default="en"
-    )
-    
+                                          )
+
     is_verified = models.BooleanField(default=False)
     is_active = models.BooleanField(default=True)
     is_deleted = models.BooleanField(default=False)
     is_staff = models.BooleanField(default=False)
     date_joined = models.DateTimeField(auto_now_add=True)
     role = models.CharField(max_length=10, choices=Roles.choices, default=Roles.USER
-    )
+                            )
 
     objects = CustomUserManager()
 
     USERNAME_FIELD = "email"
     REQUIRED_FIELDS = [
         "phone_number",
-        "full_name",
+        "frist_name",
+        "last_name",
     ]
 
     def __str__(self):
@@ -69,16 +71,37 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
 class UserProfile(models.Model):
     user = models.OneToOneField(
         User, on_delete=models.CASCADE, related_name="profile")
-    bio = models.TextField(_("bio"), blank=True)
+    bio = models.TextField(blank=True, null=True)
     profile_picture = models.ImageField(
-        _("profile picture"), upload_to="profile_pics/", blank=True, null=True
+        upload_to="profile_pics/", blank=True, null=True
     )
-    address = models.CharField(_("address"), max_length=255, blank=True)
-    date_of_birth = models.DateField(_("date of birth"), null=True, blank=True)
-    city = models.CharField(_("city"), max_length=100, blank=True)
-    state = models.CharField(_("state"), max_length=100, blank=True)
-    zip_code = models.CharField(_("zip code"), max_length=20, blank=True)
-    country = models.CharField(_("country"), max_length=100, blank=True)
+    address = models.CharField(max_length=255, blank=True)
+    date_of_birth = models.DateField(null=True, blank=True)
+    city = models.CharField(max_length=100, blank=True)
+    state = models.CharField(max_length=100, blank=True)
+    zip_code = models.CharField(max_length=20, blank=True)
+    country = models.CharField(max_length=100, blank=True)
+    ip_address = models.GenericIPAddressField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
         return f"Profile of {self.user.email}"
+
+class BVN(models.Model):
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="bvn"
+    )
+    bvn_number = models.CharField(max_length=11, unique=True)
+    is_verified = models.BooleanField(default=False)
+    is_deleted = models.BooleanField(default=False)
+    verified_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.user.email} - {self.bvn_number}"
+    
+    def delete(self, using=None, keep_parents=False):
+        self.is_deleted = True
+        self.is_active = False
+        self.save()

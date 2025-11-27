@@ -4,6 +4,7 @@ from django.conf import settings
 from .models import UserProfile
 from allauth.account.signals import email_confirmed
 from django.dispatch import receiver as signal_receiver
+from savingplans.models import Wallet
 
 
 @receiver(post_save, sender=settings.AUTH_USER_MODEL)
@@ -27,3 +28,8 @@ def allauth_email_confirmed(request, email_address, **kwargs):
         # set is_verified flag and save
         user.is_verified = True
         user.save()
+
+@receiver(post_save, sender=settings.AUTH_USER_MODEL)
+def create_user_wallet(sender, instance, created, **kwargs):
+    if created:
+        Wallet.objects.create(user=instance)

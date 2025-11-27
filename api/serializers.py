@@ -1,9 +1,19 @@
 from dj_rest_auth.registration.serializers import RegisterSerializer
 from dj_rest_auth.serializers import LoginSerializer
-from users.models import CustomUser, UserProfile
+from users.models import CustomUser, UserProfile, BVN
 from rest_framework import serializers
 from django.contrib.auth import authenticate
-from savingplans.models import SavingPlan, UserSavingPlan, SavingsGoal
+from savingplans.models import (
+    SavingPlan, 
+    UserSavingPlan, 
+    SavingsGoal,
+    AutoSavingSchedule,
+    GroupMember,
+    GroupSavingPlan,
+    GroupContribution,
+    Wallet,
+    Transaction,
+)
 
 User = CustomUser
 
@@ -11,8 +21,9 @@ User = CustomUser
 class CustomRegisterSerializer(RegisterSerializer):
     username = None
     email = serializers.EmailField(required=True)
+    frist_name = serializers.CharField(required=True, max_length=30)
+    last_name = serializers.CharField(required=True, max_length=30)
     phone_number = serializers.CharField(required=True, max_length=15)
-    full_name = serializers.CharField(required=True, max_length=30)
 
     def validate_email(self, value):
         if User.objects.filter(email=value).exists():
@@ -30,17 +41,19 @@ class CustomRegisterSerializer(RegisterSerializer):
         """Override to clean only fields that exist."""
         return {
             'email': self.validated_data.get('email', ''),
-            'password1': self.validated_data.get('password1', ''),
+            'frist_name': self.validated_data.get('frist_name', ''),
+            'last_name': self.validated_data.get('last_name', ''),
             'phone_number': self.validated_data.get('phone_number', ''),
-            'full_name': self.validated_data.get('full_name', ''),
+            'password1': self.validated_data.get('password1', ''),
         }
 
     def save(self, request):
         user = User.objects.create_user(
             email=self.validated_data['email'],
-            password=self.validated_data['password1'],
+            frist_name=self.validated_data['frist_name'],
+            last_name=self.validated_data['last_name'],
             phone_number=self.validated_data['phone_number'],
-            full_name=self.validated_data['full_name'],
+            password=self.validated_data['password1'],
         )
         return user
 
@@ -87,13 +100,17 @@ class UserProfileSerializer(serializers.ModelSerializer):
         fields = ['bio', 'address', 'date_of_birth',
                   'city', 'state', 'zip_code', 'country',]
 
+class BvnSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = BVN
+        fields = ['id', 'bvn_number',]
 
 class UserSerializer(serializers.ModelSerializer):
     profile = UserProfileSerializer(read_only=True)
 
     class Meta:
         model = User
-        fields = ['id', 'email', 'phone_number', 'full_name',
+        fields = ['id', 'email', 'phone_number', 'frist_name', 'last_name',
                   'is_verified', 'is_active', 'date_joined', 'role', 'profile']
 
     def update(self, instance, validated_data):
@@ -120,9 +137,28 @@ class SavingPlanSerializer(serializers.ModelSerializer):
 
 
 class UserSavingPlanSerializer(serializers.ModelSerializer):
+    plan = SavingPlanSerializer(read_only=True)
+    plan_id = serializers.PrimaryKeyRelatedField(queryset=SavingPlan.objects.all(), source="plan", write_only=True)
+
     class Meta:
         model = UserSavingPlan
-        fields = '__all__'
+        fields = [
+            "id",
+            "user",
+            "plan",
+            "plan_id",
+            "amount",
+            "current_balance",
+            "start_date",
+            "end_date",
+            "is_active",
+        ]
+        read_only_fields = ("current_balance",)
+        extra_kwargs = {"user": {"read_only": True}}
+
+    def create(self, validated_data):
+        # user will be set in view
+        return super().create(validated_data)
 
 
 class SavingsGoalSerializer(serializers.ModelSerializer):
@@ -143,3 +179,98 @@ class SavingsGoalSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError(
                 "Target date must be in the future.")
         return data
+
+class AutoSavingScheduleSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = AutoSavingSchedule
+        fields = "__all__"
+        read_only_fields = ("created_at",)
+        extra_kwargs = {"user": {"read_only": True}}
+
+    def validate(self, attrs):
+        if not attrs.get("goal") and not attrs.get("user_plan"):
+            raise serializers.ValidationError("Either 'goal' or 'user_plan' must be provided.")
+        return attrs
+    
+class GroupMemberSerializer(serializers.ModelSerializer):
+    user = serializers.PrimaryKeyRelatedField(queryset=User.objects.all())
+    user_detail = serializers.SerializerMethodField(read_only=True)
+
+    class Meta:
+        model = GroupMember
+        fields = ("id", "user", "user_detail", "group", "role", "joined_at")
+        read_only_fields = ("joined_at",)
+
+    def get_user_detail(self, obj):
+        return {"id": obj.user.id, "email": obj.user.email}
+    
+class GroupContributionSerializer(serializers.ModelSerializer):
+    member = serializers.PrimaryKeyRelatedField(queryset=GroupMember.objects.all())
+    group = serializers.PrimaryKeyRelatedField(queryset=GroupSavingPlan.objects.all())
+
+    class Meta:
+        model = GroupContribution
+        fields = ("id", "member", "group", "amount", "date_contributed")
+        read_only_fields = ("date_contributed",)
+
+    def validate(self, data):
+        # ensure member belongs to group
+        member = data.get("member")
+        group = data.get("group")
+        if member.group_id != group.id:
+            raise serializers.ValidationError("Member does not belong to the provided group.")
+        return data
+    
+class WalletSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Wallet
+        fields = ['id', 'balance', 'currency']
+
+class TransactionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Transaction
+        fields = [
+            'id', 'wallet', 'amount', 'type', 'reference',
+            'description', 'created_at', 'receiver_wallet'
+        ]
+        read_only_fields = ['wallet', 'created_at']
+
+    def validate(self, data):
+        wallet = self.context['request'].user.wallet
+        amount = data['amount']
+
+        if data['type'] == 'withdrawal' and wallet.balance < amount:
+            raise serializers.ValidationError("Insufficient balance.")
+
+        if data['type'] == 'transfer':
+            if 'receiver_wallet' not in data:
+                raise serializers.ValidationError("Receiver wallet is required.")
+            if data['receiver_wallet'] == wallet:
+                raise serializers.ValidationError("You cannot transfer to yourself.")
+            if wallet.balance < amount:
+                raise serializers.ValidationError("Insufficient balance for transfer.")
+
+        return data
+
+    def create(self, validated_data):
+        wallet = self.context['request'].user.wallet
+        amount = validated_data['amount']
+        tx_type = validated_data['type']
+
+        # Apply wallet balance update
+        if tx_type == 'deposit':
+            wallet.balance += amount
+
+        elif tx_type == 'withdrawal':
+            wallet.balance -= amount
+
+        elif tx_type == 'transfer':
+            receiver_wallet = validated_data['receiver_wallet']
+            wallet.balance -= amount
+            receiver_wallet.balance += amount
+            receiver_wallet.save()
+
+        wallet.save()
+
+        validated_data['wallet'] = wallet
+        return super().create(validated_data)
