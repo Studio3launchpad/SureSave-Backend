@@ -229,3 +229,10 @@ LOGIN_REDIRECT_URL = "/"
 ACCOUNT_EMAIL_SUBJECT_PREFIX = "[SureSave] "
 ACCOUNT_EMAIL_CONFIRMATION_TEMPLATE = "account/email/email_confirmation_message.html"
 ACCOUNT_PASSWORD_RESET_TEMPLATE = "account/email/password_reset_message.html"
+
+# Media
+MEDIA_URL = "/media/"
+MEDIA_ROOT = BASE_DIR / "media"
+STATIC_URL = '/static/'
+STATIC_ROOT = BASE_DIR / 'staticfiles'
+#ALLOW_MEDIA = True
