@@ -1,6 +1,6 @@
-from rest_framework.permissions import BasePermission
+from rest_framework import permissions
 
-class IsOwnerOrReadOnly(BasePermission):
+class IsOwnerOrReadOnly(permissions.BasePermission):
     """
     Allow safe methods for everyone, write methods only for resource owner.
     Assumes view has .get_object() returning object with 'user' attribute.
@@ -9,10 +9,10 @@ class IsOwnerOrReadOnly(BasePermission):
     def has_object_permission(self, request, view, obj):
         if request.method in ("GET", "HEAD", "OPTIONS"):
             return True
-        return getattr(obj, "user", None) == request.user
+        return getattr(obj, "User", None) == request.user
 
 
-class IsGroupAdmin(BasePermission):
+class IsGroupAdmin(permissions.BasePermission):
     """
     Allow write operations only to group admin(s).
     Assumes group object has members with role field.
@@ -28,10 +28,26 @@ class IsGroupAdmin(BasePermission):
         # if viewed object is GroupSavingPlan, check whether user is admin
         try:
             group = obj if obj.__class__.__name__ == "GroupSavingPlan" else obj.group
-            return group.members.filter(user=user, role="admin").exists()
+            return group.members.filter(user=user, role="Admin").exists()
         except Exception:
             return False
 
-class IsWalletOwner(BasePermission):
+class IsWalletOwner(permissions.BasePermission):
     def has_object_permission(self, request, view, obj):
         return obj.user == request.user
+
+class IsAdminOrSelf(permissions.BasePermission):
+    """Allow admins full access; allow users to view/update their own user object."""
+
+    def has_permission(self, request, view):
+        if not request.user or not request.user.is_authenticated:
+            return False
+        if request.method in permissions.SAFE_METHODS:
+            return True
+        return request.user.role == "Admin"
+
+    def has_object_permission(self, request, view, obj):
+        if request.method in permissions.SAFE_METHODS:
+            return True
+        return request.user.role == "Admin" or getattr(obj, "pk", None) == getattr(request.user, "pk", None)
+   

@@ -2,6 +2,7 @@ from jsonschema import ValidationError
 from rest_framework import viewsets, status, permissions
 from rest_framework.response import Response
 from rest_framework.decorators import action
+from drf_spectacular.utils import extend_schema, extend_schema_view
 from .serializers import (
     UserSerializer,
     SavingPlanSerializer,
@@ -14,7 +15,12 @@ from .serializers import (
     WalletSerializer,
     TransactionSerializer,
 )
-from .permissions import IsOwnerOrReadOnly, IsGroupAdmin
+from .permissions import (
+    IsOwnerOrReadOnly, 
+    IsGroupAdmin, 
+    IsWalletOwner, 
+    IsAdminOrSelf,
+)
 from rest_framework.permissions import IsAuthenticated, IsAdminUser
 from django.contrib.auth import get_user_model
 from savingplans.models import (
@@ -37,9 +43,9 @@ from api import serializers
 
 User = get_user_model()
 
-
+@extend_schema(tags=["User Management"])
 class UserAuthViewSet(viewsets.ModelViewSet):
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsAdminOrSelf]
     queryset = User.objects.all()
     serializer_class = UserSerializer
 
@@ -51,7 +57,7 @@ class UserAuthViewSet(viewsets.ModelViewSet):
             {"message": "User soft deleted successfully."},
             status=status.HTTP_200_OK
     )
-
+@extend_schema(tags=["BVN Management"])
 class BvnViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated]
     queryset = BVN.objects.all()
@@ -67,11 +73,12 @@ class BvnViewSet(viewsets.ModelViewSet):
 
         serializer.save(user=user, is_verified=True)
 
+@extend_schema(tags=["Saving Plans"])
 class SavingPlanViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAdminUser]
     queryset = SavingPlan.objects.all()
     serializer_class = SavingPlanSerializer
-
+@extend_schema(tags=["User Saving Plans"])
 class UserSavingPlanViewSet(viewsets.ModelViewSet):
     queryset = UserSavingPlan.objects.select_related("plan", "user").all()
     serializer_class = UserSavingPlanSerializer
@@ -86,7 +93,7 @@ class UserSavingPlanViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
-    
+@extend_schema(tags=["Savings Goals"]) 
 class SavingsGoalViewSet(viewsets.ModelViewSet):
     queryset = SavingsGoal.objects.select_related("user").all().order_by("-created_at")
     serializer_class = SavingsGoalSerializer
@@ -124,6 +131,7 @@ class SavingsGoalViewSet(viewsets.ModelViewSet):
 # ----------------------------
 # AutoSavingSchedule
 # ----------------------------
+@extend_schema(tags=["Auto Saving Schedules"])
 class AutoSavingScheduleViewSet(viewsets.ModelViewSet):
     queryset = AutoSavingSchedule.objects.select_related("user", "goal", "user_plan").all()
     serializer_class = AutoSavingScheduleSerializer
@@ -142,6 +150,7 @@ class AutoSavingScheduleViewSet(viewsets.ModelViewSet):
 # ----------------------------
 # GroupSavingPlan + Members + Contributions
 # ----------------------------
+@extend_schema(tags=["Group Saving Plans"])
 class GroupSavingPlanViewSet(viewsets.ModelViewSet):
     queryset = GroupSavingPlan.objects.prefetch_related("members").all().order_by("-created_at")
     serializer_class = SavingPlanSerializer 
@@ -180,8 +189,7 @@ class GroupSavingPlanViewSet(viewsets.ModelViewSet):
         member, created = GroupMember.objects.get_or_create(user=target_user, group=group)
         serializer = GroupMemberSerializer(member)
         return Response(serializer.data, status=status.HTTP_201_CREATED if created else status.HTTP_200_OK)
-
-
+@extend_schema(tags=["Group Members"])
 class GroupMemberViewSet(viewsets.ModelViewSet):
     queryset = GroupMember.objects.select_related("user", "group").all()
     serializer_class = GroupMemberSerializer
@@ -194,7 +202,7 @@ class GroupMemberViewSet(viewsets.ModelViewSet):
         # users can see only groups they belong to
         return self.queryset.filter(user=user)
 
-
+@extend_schema(tags=["Group Contributions"])
 class GroupContributionViewSet(viewsets.ModelViewSet):
     queryset = GroupContribution.objects.select_related("member", "group").all().order_by("-date_contributed")
     serializer_class = GroupContributionSerializer
@@ -228,7 +236,7 @@ class DashboardViewSet(viewsets.ViewSet):
 
         return Response(data, status=status.HTTP_200_OK)
     
-
+@extend_schema(tags=["Wallets"])
 class WalletViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = WalletSerializer
     permission_classes = [permissions.IsAuthenticated]
@@ -238,7 +246,7 @@ class WalletViewSet(viewsets.ReadOnlyModelViewSet):
 
     def get_object(self):
         return self.request.user.wallet
-    
+@extend_schema(tags=["Transactions"]) 
 class TransactionViewSet(viewsets.ModelViewSet):
     serializer_class = TransactionSerializer
     permission_classes = [permissions.IsAuthenticated]
@@ -250,8 +258,7 @@ class TransactionViewSet(viewsets.ModelViewSet):
         serializer.save()
 
 
-
-
+@extend_schema(tags=["Dashboard"])
 class DashboardView(viewsets.ViewSet):
     permission_classes = [IsAuthenticated]
 
