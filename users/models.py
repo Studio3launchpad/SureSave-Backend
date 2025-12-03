@@ -19,7 +19,8 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
     last_name = models.CharField(max_length=30)
     total_savings = models.DecimalField(
         max_digits=12, decimal_places=2, default=0.00
-    )
+    )    
+    phone_number = models.CharField(max_length=15, blank=True, null=True)
     langage_preference = models.CharField(max_length=10, default="en"
                                           )
 

@@ -23,6 +23,7 @@ class CustomRegisterSerializer(RegisterSerializer):
     email = serializers.EmailField(required=True)
     first_name = serializers.CharField(required=True, max_length=30)
     last_name = serializers.CharField(required=True, max_length=30)
+    phone_number = serializers.CharField(required=False, allow_blank=True, max_length=15)
     password1 = serializers.CharField(write_only=True)
     password2 = serializers.CharField(write_only=True)
 
@@ -44,18 +45,21 @@ class CustomRegisterSerializer(RegisterSerializer):
             'email': self.validated_data.get('email', ''),
             'first_name': self.validated_data.get('first_name', ''),
             'last_name': self.validated_data.get('last_name', ''),
+            'phone_number': self.validated_data.get('phone_number', ''),
             'password1': self.validated_data.get('password1', ''),
             'password2': self.validated_data.get('password2', ''),
         }
 
     def save(self, request):
+        validated_data = self.validated_data
+
         user = User.objects.create_user(
-            email=self.validated_data['email'],
-            first_name=self.validated_data['first_name'],
-            last_name=self.validated_data['last_name'],
+            email=validated_data['email'],
+            first_name=validated_data['first_name'],
+            last_name=validated_data['last_name'],
+            phone_number=validated_data['phone_number'],
+            password=validated_data['password1'],
         )
-        user.set_password(self.cleaned_data.get("password1"))
-        user.save()
         return user
 
 
@@ -98,7 +102,7 @@ class CustomLoginSerializer(LoginSerializer):
 class UserProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = UserProfile
-        fields = ['bio', 'address', 'phone_number', 'date_of_birth',
+        fields = ['bio', 'address', 'date_of_birth',
                   'city', 'state', 'zip_code', 'country',]
 
 
@@ -113,7 +117,7 @@ class UserSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ['id', 'email', 'first_name', 'last_name',
+        fields = ['id', 'email', 'first_name', 'last_name', 'phone_number',
                   'is_verified', 'is_active', 'date_joined', 'role', 'profile']
 
     def update(self, instance, validated_data):

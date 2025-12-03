@@ -34,6 +34,7 @@ from savingplans.models import (
     Wallet,
     Transaction,
 )
+from jobSavings.models import JobSavings
 from rest_framework.response import Response
 from django.shortcuts import get_object_or_404
 from django.db.models import Sum
@@ -218,24 +219,7 @@ class GroupContributionViewSet(viewsets.ModelViewSet):
         # TODO: integrate with wallet/transaction before saving
         return super().create(request, *args, **kwargs) 
 
-class DashboardViewSet(viewsets.ViewSet):
-    permission_classes = [permissions.IsAuthenticated]
-
-    @action(detail=False, methods=['get'])
-    def overview(self, request):
-        user = request.user
-        total_saving_plans = SavingPlan.objects.count()
-        user_saving_plans = UserSavingPlan.objects.filter(user=user).count()
-        total_savings_goals = SavingsGoal.objects.filter(user=user).count()
-
-        data = {
-            "total_saving_plans": total_saving_plans,
-            "user_saving_plans": user_saving_plans,
-            "total_savings_goals": total_savings_goals,
-        }
-
-        return Response(data, status=status.HTTP_200_OK)
-    
+  
 @extend_schema(tags=["Wallets"])
 class WalletViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = WalletSerializer
@@ -260,52 +244,25 @@ class TransactionViewSet(viewsets.ModelViewSet):
 
 @extend_schema(tags=["Dashboard"])
 class DashboardView(viewsets.ViewSet):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAdminOrSelf]
 
+    @action(detail=False, methods=["get"])
     def get(self, request):
         user = request.user
         
-        # Wallet
-        wallet = Wallet.objects.filter(user=user).first()
-        wallet_balance = wallet.balance if wallet else 0
-
-        # Recent Transactions
-        recent_transactions = Transaction.objects.filter(user=user).order_by('-created_at')[:5]
-
-        # Target Savings
-        #targets = TargetSaving.objects.filter(user=user)
-
-        # Savings Plans (auto-savings)
-        #auto_savings = SavingsPlan.objects.filter(user=user, is_active=True)
-
-        # Group Savings (groups user belongs to)
-        group_ids = GroupMember.objects.filter(user=user).values_list("group_id", flat=True)
-        #groups = GroupSaving.objects.filter(id__in=group_ids)
-
-        # Notifications
-        #notifications = Notification.objects.filter(user=user).order_by('-created_at')[:5]
-
-        # Upcoming Activities
-        upcoming = {
-            #"next_auto_save": auto_savings.first().next_run if auto_savings.exists() else None,
-            #"next_target_due": targets.order_by("next_run_date").first().next_run_date if targets.exists() else None,
-           # "next_group_round": groups.order_by("next_round_date").first().next_round_date if groups.exists() else None,
-        }
-
+        total_savings = UserSavingPlan.objects.filter(user=user).aggregate(total=Sum('amount'))['total'] or 0
+        earnings = UserSavingPlan.objects.filter(user=user).aggregate(total=Sum('amount'))['total'] or 0
+        job_savings = JobSavings.objects.filter(user=user).count()
+        goal_savings = SavingsGoal.objects.filter(user=user).count()
         return Response({
             "user": {
-                "name": user.get_frist_name(),
+                "name": user.first_name,
                 "email": user.email,
-                "bvn_verified": getattr(user, "bvn_verified", False),
             },
-            "wallet": {
-                "balance": wallet_balance,
-                "currency": "NGN",
-            },
-            "transactions": TransactionSerializer(recent_transactions, many=True).data,
-            # "target_savings": TargetSavingSerializer(targets, many=True).data,
-            # "auto_savings": SavingsPlanSerializer(auto_savings, many=True).data,
-            # "group_savings": GroupSavingSerializer(groups, many=True).data,
-            # "notifications": NotificationSerializer(notifications, many=True).data,
-            "upcoming": upcoming,
+            "dashboard": {
+                "total_savings": total_savings,
+                "earnings": earnings,
+                "job_savings": job_savings,
+                "goal_savings": goal_savings,
+            }
         })
