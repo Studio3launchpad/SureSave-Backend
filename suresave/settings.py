@@ -14,23 +14,23 @@ from pathlib import Path
 import os
 from datetime import timedelta
 from dotenv import load_dotenv
-load_dotenv()
 # print("EMAIL_HOST_USER:", os.getenv("EMAIL_HOST_USER"))
 
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+load_dotenv(BASE_DIR / ".env")
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = os.getenv("SECRET_KEY")
+SECRET_KEY = os.getenv("SECRET_KEY", "6zphs$^%esr=%e6z^*$!%u9io)xs=ri!9u!6v4a&gfv*e#@739")
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = os.getenv("DEBUG") == "True"
+DEBUG = os.getenv("DEBUG")
 
-ALLOWED_HOSTS = ["yourdomain.com", "www.yourdomain.com", "127.0.0.1", "localhost"]
+ALLOWED_HOSTS = ["suresave.pythonanywhere.com",]
 
 
 
@@ -55,12 +55,12 @@ INSTALLED_APPS = [
     "allauth.socialaccount",
     "dj_rest_auth.registration",
     "rest_framework_simplejwt",
+    "corsheaders",
     # Local apps
     "users",
     "transactions",
     "savingplans",
     "notifications",
-    "jobSavings",
 ]
 
 MIDDLEWARE = [
@@ -73,6 +73,9 @@ MIDDLEWARE = [
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     # Add the account middleware:
     "allauth.account.middleware.AccountMiddleware",
+    #Cors Headers
+    "corsheaders.middleware.CorsMiddleware",
+    "django.middleware.common.CommonMiddleware",
 ]
 
 ROOT_URLCONF = "suresave.urls"
@@ -101,10 +104,10 @@ WSGI_APPLICATION = "suresave.wsgi.application"
 DATABASES = {
     "default": {
         "ENGINE": os.getenv("DB_ENGINE", "django.db.backends.mysql"),
-        "NAME": os.getenv("DB_NAME"),
+        "NAME": os.getenv("DB_NAME", "suresave$default"),
         "USER": os.getenv("DB_USER"),
-        "PASSWORD": os.getenv("DB_PASSWORD"),
-        "HOST": os.getenv("DB_HOST"),
+        "PASSWORD": os.getenv("DB_PASSWORD", "U3#UhFTpkzsbmkJ"),
+        "HOST": os.getenv("DB_HOST", "suresave.mysql.pythonanywhere-services.com"),
         "PORT": os.getenv("DB_PORT"),
     }
 }
@@ -168,9 +171,11 @@ REST_FRAMEWORK = {
         "rest_framework_simplejwt.authentication.JWTAuthentication",
     ),
     "DEFAULT_PERMISSION_CLASSES": (
-        "rest_framework.permissions.IsAuthenticated",
-        "django_filters.rest_framework.DjangoFilterBackend",
-        "rest_framework.filters.SearchFilter",
+        "rest_framework.permissions.AllowAny",
+    ),
+    "DEFAULT_FILTER_BACKENDS": (
+    "django_filters.rest_framework.DjangoFilterBackend",
+    "rest_framework.filters.SearchFilter",
     ),
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.LimitOffsetPagination",
     "PAGE_SIZE": 5,
@@ -198,10 +203,10 @@ SIMPLE_JWT = {
 
 # Allauth new settings
 ACCOUNT_LOGIN_METHODS = ["email"]
-ACCOUNT_SIGNUP_FIELDS = ["email*", "password1*", "password2*"]
-ACCOUNT_EMAIL_VERIFICATION = 'mandatory'
+ACCOUNT_SIGNUP_FIELDS = ["email", "first_name", "last_name"]
+ACCOUNT_EMAIL_VERIFICATION = 'none'
 ACCOUNT_USER_MODEL_USERNAME_FIELD = None  # <--- important
-ACCOUNT_CONFIRM_EMAIL_ON_GET = True
+#ACCOUNT_CONFIRM_EMAIL_ON_GET = True
 
 # When a user clicks the email confirmation link, redirect instead of
 # rendering a template. Adjust these to your frontend routes if needed.
@@ -217,23 +222,59 @@ SPECTACULAR_SETTINGS = {
 }
 
 # Email backend settings (for development, using console backend)
-# EMAIL_BACKEND = os.getenv("EMAIL_BACKEND")
-# EMAIL_HOST = os.getenv("HOST_EMAIL")
-# EMAIL_PORT = os.getenv("EMAIL_PORT")
-# EMAIL_USE_TLS = os.getenv("EMAIL_USE_TLS")
-# EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER")
-# EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD")
-# DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
-EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+EMAIL_HOST = "smtp.gmail.com"
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+
+EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER")
+EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD")
+
+DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
+REST_FRAMEWORK['EXCEPTION_HANDLER'] = 'rest_framework.views.exception_handler'
+
+
+
+#EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 
 LOGIN_REDIRECT_URL = "/"
 ACCOUNT_EMAIL_SUBJECT_PREFIX = "[SureSave] "
 ACCOUNT_EMAIL_CONFIRMATION_TEMPLATE = "account/email/email_confirmation_message.html"
 ACCOUNT_PASSWORD_RESET_TEMPLATE = "account/email/password_reset_message.html"
 
+#Allow Cors Header
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:8000",
+    "http://127.0.0.1:8000",
+    "http://localhost:5173",
+    "https://suresave.netlify.app",
+]
+
+CORS_ALLOW_METHODS = [
+    'GET',
+    'POST',
+    'PUT',
+    'DELETE',
+    'OPTIONS',
+]
+
+CORS_ALLOW_HEADERS = ['*']
+
+CORS_ALLOW_CREDENTIALS = True
+
+CSRF_TRUSTED_ORIGINS = [
+    "http://localhost:3000",
+    "http://localhost:5173",
+]
+
+SESSION_COOKIE_SECURE = True
+CSRF_COOKIE_SECURE = True
+
+
+
 # Media
-MEDIA_URL = "/media/"
-MEDIA_ROOT = BASE_DIR / "media"
-STATIC_URL = '/static/'
-STATIC_ROOT = BASE_DIR / 'staticfiles'
-#ALLOW_MEDIA = True
+# MEDIA_URL = "/media/"
+# MEDIA_ROOT = BASE_DIR / "media"
+# STATIC_URL = '/static/'
+# STATIC_ROOT = BASE_DIR / 'staticfiles'
+# ALLOW_MEDIA = False
