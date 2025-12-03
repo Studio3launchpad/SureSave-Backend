@@ -4,8 +4,8 @@ from users.models import CustomUser, UserProfile, BVN
 from rest_framework import serializers
 from django.contrib.auth import authenticate
 from savingplans.models import (
-    SavingPlan, 
-    UserSavingPlan, 
+    SavingPlan,
+    UserSavingPlan,
     SavingsGoal,
     AutoSavingSchedule,
     GroupMember,
@@ -21,9 +21,11 @@ User = CustomUser
 class CustomRegisterSerializer(RegisterSerializer):
     username = None
     email = serializers.EmailField(required=True)
-    frist_name = serializers.CharField(required=True, max_length=30)
+    first_name = serializers.CharField(required=True, max_length=30)
     last_name = serializers.CharField(required=True, max_length=30)
-    phone_number = serializers.CharField(required=True, max_length=15)
+    phone_number = serializers.CharField(required=False, allow_blank=True, max_length=15)
+    password1 = serializers.CharField(write_only=True)
+    password2 = serializers.CharField(write_only=True)
 
     def validate_email(self, value):
         if User.objects.filter(email=value).exists():
@@ -31,29 +33,32 @@ class CustomRegisterSerializer(RegisterSerializer):
                 "An account with this email already exists.")
         return value
 
-    def validate_phone_number(self, value):
-        if User.objects.filter(phone_number=value).exists():
-            raise serializers.ValidationError(
-                "An account with this phone number already exists.")
-        return value
+    # def validate_phone_number(self, value):
+    #     if User.objects.filter(phone_number=value).exists():
+    #         raise serializers.ValidationError(
+    #             "An account with this phone number already exists.")
+    #     return value
 
     def get_cleaned_data(self):
         """Override to clean only fields that exist."""
         return {
             'email': self.validated_data.get('email', ''),
-            'frist_name': self.validated_data.get('frist_name', ''),
+            'first_name': self.validated_data.get('first_name', ''),
             'last_name': self.validated_data.get('last_name', ''),
             'phone_number': self.validated_data.get('phone_number', ''),
             'password1': self.validated_data.get('password1', ''),
+            'password2': self.validated_data.get('password2', ''),
         }
 
     def save(self, request):
+        validated_data = self.validated_data
+
         user = User.objects.create_user(
-            email=self.validated_data['email'],
-            frist_name=self.validated_data['frist_name'],
-            last_name=self.validated_data['last_name'],
-            phone_number=self.validated_data['phone_number'],
-            password=self.validated_data['password1'],
+            email=validated_data['email'],
+            first_name=validated_data['first_name'],
+            last_name=validated_data['last_name'],
+            phone_number=validated_data['phone_number'],
+            password=validated_data['password1'],
         )
         return user
 
@@ -100,17 +105,19 @@ class UserProfileSerializer(serializers.ModelSerializer):
         fields = ['bio', 'address', 'date_of_birth',
                   'city', 'state', 'zip_code', 'country',]
 
+
 class BvnSerializer(serializers.ModelSerializer):
     class Meta:
         model = BVN
         fields = ['id', 'bvn_number',]
+
 
 class UserSerializer(serializers.ModelSerializer):
     profile = UserProfileSerializer(read_only=True)
 
     class Meta:
         model = User
-        fields = ['id', 'email', 'phone_number', 'frist_name', 'last_name',
+        fields = ['id', 'email', 'first_name', 'last_name', 'phone_number',
                   'is_verified', 'is_active', 'date_joined', 'role', 'profile']
 
     def update(self, instance, validated_data):
@@ -138,7 +145,8 @@ class SavingPlanSerializer(serializers.ModelSerializer):
 
 class UserSavingPlanSerializer(serializers.ModelSerializer):
     plan = SavingPlanSerializer(read_only=True)
-    plan_id = serializers.PrimaryKeyRelatedField(queryset=SavingPlan.objects.all(), source="plan", write_only=True)
+    plan_id = serializers.PrimaryKeyRelatedField(
+        queryset=SavingPlan.objects.all(), source="plan", write_only=True)
 
     class Meta:
         model = UserSavingPlan
@@ -180,6 +188,7 @@ class SavingsGoalSerializer(serializers.ModelSerializer):
                 "Target date must be in the future.")
         return data
 
+
 class AutoSavingScheduleSerializer(serializers.ModelSerializer):
     class Meta:
         model = AutoSavingSchedule
@@ -189,9 +198,11 @@ class AutoSavingScheduleSerializer(serializers.ModelSerializer):
 
     def validate(self, attrs):
         if not attrs.get("goal") and not attrs.get("user_plan"):
-            raise serializers.ValidationError("Either 'goal' or 'user_plan' must be provided.")
+            raise serializers.ValidationError(
+                "Either 'goal' or 'user_plan' must be provided.")
         return attrs
-    
+
+
 class GroupMemberSerializer(serializers.ModelSerializer):
     user = serializers.PrimaryKeyRelatedField(queryset=User.objects.all())
     user_detail = serializers.SerializerMethodField(read_only=True)
@@ -203,10 +214,13 @@ class GroupMemberSerializer(serializers.ModelSerializer):
 
     def get_user_detail(self, obj):
         return {"id": obj.user.id, "email": obj.user.email}
-    
+
+
 class GroupContributionSerializer(serializers.ModelSerializer):
-    member = serializers.PrimaryKeyRelatedField(queryset=GroupMember.objects.all())
-    group = serializers.PrimaryKeyRelatedField(queryset=GroupSavingPlan.objects.all())
+    member = serializers.PrimaryKeyRelatedField(
+        queryset=GroupMember.objects.all())
+    group = serializers.PrimaryKeyRelatedField(
+        queryset=GroupSavingPlan.objects.all())
 
     class Meta:
         model = GroupContribution
@@ -218,13 +232,16 @@ class GroupContributionSerializer(serializers.ModelSerializer):
         member = data.get("member")
         group = data.get("group")
         if member.group_id != group.id:
-            raise serializers.ValidationError("Member does not belong to the provided group.")
+            raise serializers.ValidationError(
+                "Member does not belong to the provided group.")
         return data
-    
+
+
 class WalletSerializer(serializers.ModelSerializer):
     class Meta:
         model = Wallet
         fields = ['id', 'balance', 'currency']
+
 
 class TransactionSerializer(serializers.ModelSerializer):
     class Meta:
@@ -244,11 +261,14 @@ class TransactionSerializer(serializers.ModelSerializer):
 
         if data['type'] == 'transfer':
             if 'receiver_wallet' not in data:
-                raise serializers.ValidationError("Receiver wallet is required.")
+                raise serializers.ValidationError(
+                    "Receiver wallet is required.")
             if data['receiver_wallet'] == wallet:
-                raise serializers.ValidationError("You cannot transfer to yourself.")
+                raise serializers.ValidationError(
+                    "You cannot transfer to yourself.")
             if wallet.balance < amount:
-                raise serializers.ValidationError("Insufficient balance for transfer.")
+                raise serializers.ValidationError(
+                    "Insufficient balance for transfer.")
 
         return data
 

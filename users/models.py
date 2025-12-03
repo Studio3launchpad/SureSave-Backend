@@ -15,12 +15,12 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
         SUPPORT = "SUPPORT", "Support"
     username = None
     email = models.EmailField(_("email address"), unique=True)
-    frist_name = models.CharField(max_length=30)
+    first_name = models.CharField(max_length=30)
     last_name = models.CharField(max_length=30)
-    phone_number = models.CharField(max_length=15, unique=True)
     total_savings = models.DecimalField(
         max_digits=12, decimal_places=2, default=0.00
-    )
+    )    
+    phone_number = models.CharField(max_length=15, blank=True, null=True)
     langage_preference = models.CharField(max_length=10, default="en"
                                           )
 
@@ -36,29 +36,19 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
 
     USERNAME_FIELD = "email"
     REQUIRED_FIELDS = [
-        "phone_number",
-        "frist_name",
+        "first_name",
         "last_name",
     ]
 
     def __str__(self):
         return self.email
 
-    def normalize_phone(self, phone: str) -> str:
-        """Normalize phone number to digits-only string."""
-        if not phone:
-            return ""
-        return re.sub(r"\D", "", phone)
-
     def save(self, *args, **kwargs):
-        # Normalize phone number before saving to keep storage consistent
-        if self.phone_number:
-            self.phone_number = self.normalize_phone(self.phone_number)
-
-            if self.is_superuser:
-                self.role = self.Roles.ADMIN
-                self.is_staff = True
-                self.is_verified = True
+        # Normalize phone number before saving to keep storage consistent       
+        if self.is_superuser:
+            self.role = self.Roles.ADMIN
+            self.is_staff = True
+            self.is_verified = True
 
         super().save(*args, **kwargs)
 
@@ -72,6 +62,7 @@ class UserProfile(models.Model):
     user = models.OneToOneField(
         User, on_delete=models.CASCADE, related_name="profile")
     bio = models.TextField(blank=True, null=True)
+    phone_number = models.CharField(max_length=15, blank=True, null=True)
     profile_picture = models.ImageField(
         upload_to="profile_pics/", blank=True, null=True
     )
