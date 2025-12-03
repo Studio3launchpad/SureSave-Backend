@@ -61,6 +61,7 @@ INSTALLED_APPS = [
     "transactions",
     "savingplans",
     "notifications",
+    "jobSavings",
 ]
 
 MIDDLEWARE = [
