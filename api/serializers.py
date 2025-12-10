@@ -3,6 +3,7 @@ from dj_rest_auth.serializers import LoginSerializer
 from users.models import CustomUser, UserProfile, BVN
 from rest_framework import serializers
 from django.contrib.auth import authenticate
+from payments.models import Card
 from savingplans.models import (
     SavingPlan,
     UserSavingPlan,
@@ -294,3 +295,24 @@ class TransactionSerializer(serializers.ModelSerializer):
 
         validated_data['wallet'] = wallet
         return super().create(validated_data)
+
+
+class CardSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Card
+        fields = [
+            'id', 'user', 'card_holder_name', 'card_number',
+            'expiry_date', 'cvv', 'is_default', 'is_verified',
+            'verification_code'
+        ]
+        read_only_fields = ['is_verified', 'verification_code',
+                            'created_at', 'updated_at', 'user']
+
+    def create(self, validated_data):
+        user = self.context['request'].user
+        card = Card.objects.create(user=user, **validated_data)
+        card.generate_verification_code()
+        return card
+    
+class CardVerifySerializer(serializers.Serializer):
+    code = serializers.CharField(max_length=6)

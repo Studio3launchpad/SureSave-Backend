@@ -14,11 +14,11 @@ from .serializers import (
     AutoSavingScheduleSerializer,
     WalletSerializer,
     TransactionSerializer,
+    CardSerializer,
+    CardVerifySerializer,
 )
 from .permissions import (
-    IsOwnerOrReadOnly, 
-    IsGroupAdmin, 
-    IsWalletOwner, 
+    IsOwnerOrReadOnly,
     IsAdminOrSelf,
 )
 from rest_framework.permissions import IsAuthenticated, IsAdminUser
@@ -34,6 +34,8 @@ from savingplans.models import (
     Wallet,
     Transaction,
 )
+from payments.models import Card
+from payments.utils import send_card_verification_code
 from jobSavings.models import JobSavings
 from rest_framework.response import Response
 from django.shortcuts import get_object_or_404
@@ -266,3 +268,42 @@ class DashboardView(viewsets.ViewSet):
                 "goal_savings": goal_savings,
             }
         })
+
+
+@extend_schema(tags=["Payments"])
+class CardViewSet(viewsets.ModelViewSet):
+    serializer_class = CardSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        return Card.objects.filter(user=self.request.user)
+
+    def perform_create(self, serializer):
+        card = serializer.save()
+        code = card.verification_code
+
+        send_card_verification_code(self.request.user.email, code)
+
+    @action(
+        detail=True,
+        methods=["post"],
+        url_path="verify",
+        serializer_class=CardVerifySerializer
+        )
+    def verify(self, request, pk=None):
+        serializer = CardVerifySerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        otp = serializer.validated_data["code"]
+        card = self.get_object()
+
+        if card.is_verified:
+            return Response({"detail": "Card is already verified."}, status=400)
+
+        if otp == card.verification_code:
+            card.is_verified = True
+            card.verification_code = None
+            card.save()
+            return Response({"detail": "Card verified successfully."}, status=200)
+
+        return Response({"detail": "Invalid verification code."}, status=400)
