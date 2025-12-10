@@ -12,6 +12,7 @@ from .views import (
     WalletViewSet,
     TransactionViewSet,
     DashboardView,
+    CardViewSet,
 )
 
 router = DefaultRouter()
@@ -27,6 +28,7 @@ router.register('group-members', GroupMemberViewSet, basename='group-members')
 router.register('wallets', WalletViewSet, basename='wallets')
 router.register('transactions', TransactionViewSet, basename='transactions')
 router.register('dashboardView', DashboardView, basename='dashboards')
+router.register('cards', CardViewSet, basename='cards')
 
 
 urlpatterns = router.urls
