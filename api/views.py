@@ -20,6 +20,9 @@ from .serializers import (
 from .permissions import (
     IsOwnerOrReadOnly,
     IsAdminOrSelf,
+    IsAuthenticatedUser,
+    IsAdmin,
+    IsOwnerOrAdmin,
 )
 from rest_framework.permissions import IsAuthenticated, IsAdminUser
 from django.contrib.auth import get_user_model
@@ -48,7 +51,7 @@ User = get_user_model()
 
 @extend_schema(tags=["User Management"])
 class UserAuthViewSet(viewsets.ModelViewSet):
-    permission_classes = [IsAdminOrSelf]
+    permission_classes = [IsAdmin, IsOwnerOrAdmin]
     queryset = User.objects.all()
     serializer_class = UserSerializer
 
@@ -62,7 +65,7 @@ class UserAuthViewSet(viewsets.ModelViewSet):
     )
 @extend_schema(tags=["BVN Management"])
 class BvnViewSet(viewsets.ModelViewSet):
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsAuthenticated,IsOwnerOrAdmin]
     queryset = BVN.objects.all()
     serializer_class = BvnSerializer
 
@@ -100,7 +103,7 @@ class UserSavingPlanViewSet(viewsets.ModelViewSet):
 class SavingsGoalViewSet(viewsets.ModelViewSet):
     queryset = SavingsGoal.objects.select_related("user").all().order_by("-created_at")
     serializer_class = SavingsGoalSerializer
-    permission_classes = [IsAuthenticated, IsOwnerOrReadOnly]
+    permission_classes = [IsAuthenticatedUser, IsOwnerOrAdmin]
 
     def get_queryset(self):
         user = self.request.user
@@ -138,7 +141,7 @@ class SavingsGoalViewSet(viewsets.ModelViewSet):
 class AutoSavingScheduleViewSet(viewsets.ModelViewSet):
     queryset = AutoSavingSchedule.objects.select_related("user", "goal", "user_plan").all()
     serializer_class = AutoSavingScheduleSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticatedUser, IsOwnerOrAdmin]
 
     def get_queryset(self):
         user = self.request.user
@@ -157,7 +160,7 @@ class AutoSavingScheduleViewSet(viewsets.ModelViewSet):
 class GroupSavingPlanViewSet(viewsets.ModelViewSet):
     queryset = GroupSavingPlan.objects.prefetch_related("members").all().order_by("-created_at")
     serializer_class = SavingPlanSerializer 
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticatedUser, IsOwnerOrAdmin]
 
     def get_serializer_class(self):
         
@@ -196,7 +199,7 @@ class GroupSavingPlanViewSet(viewsets.ModelViewSet):
 class GroupMemberViewSet(viewsets.ModelViewSet):
     queryset = GroupMember.objects.select_related("user", "group").all()
     serializer_class = GroupMemberSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticatedUser, IsOwnerOrAdmin]
 
     def get_queryset(self):
         user = self.request.user
@@ -209,7 +212,7 @@ class GroupMemberViewSet(viewsets.ModelViewSet):
 class GroupContributionViewSet(viewsets.ModelViewSet):
     queryset = GroupContribution.objects.select_related("member", "group").all().order_by("-date_contributed")
     serializer_class = GroupContributionSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticatedUser, IsOwnerOrAdmin]
 
     def create(self, request, *args, **kwargs):
         # Ensure user is the member who claims to contribute
@@ -225,7 +228,7 @@ class GroupContributionViewSet(viewsets.ModelViewSet):
 @extend_schema(tags=["Wallets"])
 class WalletViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = WalletSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsAuthenticatedUser, IsOwnerOrAdmin]
 
     def get_queryset(self):
         return Wallet.objects.filter(user=self.request.user)
@@ -235,7 +238,7 @@ class WalletViewSet(viewsets.ReadOnlyModelViewSet):
 @extend_schema(tags=["Transactions"]) 
 class TransactionViewSet(viewsets.ModelViewSet):
     serializer_class = TransactionSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsAuthenticatedUser, IsOwnerOrAdmin]
 
     def get_queryset(self):
         return Transaction.objects.filter(wallet=self.request.user.wallet).order_by('-created_at')
@@ -246,7 +249,7 @@ class TransactionViewSet(viewsets.ModelViewSet):
 
 @extend_schema(tags=["Dashboard"])
 class DashboardView(viewsets.ViewSet):
-    permission_classes = [IsAdminOrSelf]
+    permission_classes = [IsAuthenticatedUser]
 
     @action(detail=False, methods=["get"])
     def get(self, request):
@@ -273,7 +276,7 @@ class DashboardView(viewsets.ViewSet):
 @extend_schema(tags=["Payments"])
 class CardViewSet(viewsets.ModelViewSet):
     serializer_class = CardSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsAuthenticatedUser, IsOwnerOrAdmin]
 
     def get_queryset(self):
         return Card.objects.filter(user=self.request.user)
