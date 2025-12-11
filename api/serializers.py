@@ -314,6 +314,11 @@ class CardSerializer(serializers.ModelSerializer):
         card = Card.objects.create(user=user, **validated_data)
         card.generate_verification_code()
         return card
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        data["card_number"] = f"**** **** **** {instance.card_number[-4:]}"
+        return data
+
     
 class CardVerifySerializer(serializers.Serializer):
     code = serializers.CharField(max_length=6)
