@@ -201,7 +201,9 @@ SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(hours=3),
     "REFRESH_TOKEN_LIFETIME": timedelta(days=1),
     "AUTH_HEADER_TYPES": ("Bearer",),
+    "ROTATE_REFRESH_TOKENS": True,
 }
+REST_USE_JWT = True # Ensure dj-rest-auth uses JWT
 
 # Allauth new settings
 ACCOUNT_LOGIN_METHODS = ["email"]

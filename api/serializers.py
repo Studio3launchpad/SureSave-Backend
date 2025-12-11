@@ -3,6 +3,7 @@ from dj_rest_auth.serializers import LoginSerializer
 from users.models import CustomUser, UserProfile, BVN
 from rest_framework import serializers
 from django.contrib.auth import authenticate
+from rest_framework_simplejwt.tokens import RefreshToken
 from payments.models import Card
 from savingplans.models import (
     SavingPlan,
@@ -65,38 +66,38 @@ class CustomRegisterSerializer(RegisterSerializer):
 
 
 class CustomLoginSerializer(LoginSerializer):
-    """Custom login serializer that uses email field instead of username."""
     username = None
-
-    # Make email or phone field required
     email_or_phone = serializers.CharField(required=True)
 
     def validate(self, attrs):
-        # Use attrs (already-populated dict) instead of self.validated_data
         email_or_phone = attrs.get('email_or_phone')
         password = attrs.get('password')
 
         if not email_or_phone or not password:
             raise serializers.ValidationError(
-                "Must include 'email_or_phone' and 'password'.")
+                "Must include 'email_or_phone' and 'password'."
+            )
 
         user = authenticate(self.context.get('request'),
                             username=email_or_phone, password=password)
 
         if user is None:
             raise serializers.ValidationError(
-                "Unable to log in with provided credentials.")
+                "Unable to log in with provided credentials."
+            )
 
-        # Optional: check if user is active
         if not getattr(user, 'is_active', True):
             raise serializers.ValidationError("User account is disabled.")
 
-        # Attach user to attrs for the view to use
+        # Attach user
         attrs['user'] = user
-        # Map email_or_phone into expected fields so other code can read it
-        # Prefer the provided email_or_phone over any explicit 'email' field
         attrs['email'] = email_or_phone
         attrs['username'] = email_or_phone
+
+        refresh = RefreshToken.for_user(user)
+        attrs['access'] = str(refresh.access_token)
+        attrs['refresh'] = str(refresh)
+
         return attrs
 
 
