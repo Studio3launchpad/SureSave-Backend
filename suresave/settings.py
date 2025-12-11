@@ -253,6 +253,7 @@ CORS_ALLOWED_ORIGINS = [
     "http://localhost:5173",
     "https://suresave.netlify.app",
     "http://localhost:5174",
+    "https://sure-saves.vercel.app",
 ]
 
 CORS_ALLOW_METHODS = [
