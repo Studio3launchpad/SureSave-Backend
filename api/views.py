@@ -249,16 +249,17 @@ class TransactionViewSet(viewsets.ModelViewSet):
 
 @extend_schema(tags=["Dashboard"])
 class DashboardView(viewsets.ViewSet):
-    permission_classes = [IsAuthenticatedUser]
+    permission_classes = [IsAuthenticated]
 
-    @action(detail=False, methods=["get"])
-    def get(self, request):
+    # Use list() for GET at /dashboardView/
+    def list(self, request):
         user = request.user
         
         total_savings = UserSavingPlan.objects.filter(user=user).aggregate(total=Sum('amount'))['total'] or 0
         earnings = UserSavingPlan.objects.filter(user=user).aggregate(total=Sum('amount'))['total'] or 0
         job_savings = JobSavings.objects.filter(user=user).count()
         goal_savings = SavingsGoal.objects.filter(user=user).count()
+
         return Response({
             "user": {
                 "name": user.first_name,
