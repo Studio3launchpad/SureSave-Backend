@@ -281,33 +281,36 @@ class CardViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         return Card.objects.filter(user=self.request.user)
-
+    
     def perform_create(self, serializer):
-        card = serializer.save()
-        code = card.verification_code
+        serializer.save(user=self.request.user)
 
-        send_card_verification_code(self.request.user.email, code)
+    # def perform_create(self, serializer):
+    #     card = serializer.save()
+    #     code = card.verification_code
 
-    @action(
-        detail=True,
-        methods=["post"],
-        url_path="verify",
-        serializer_class=CardVerifySerializer
-        )
-    def verify(self, request, pk=None):
-        serializer = CardVerifySerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
+    #     send_card_verification_code(self.request.user.email, code)
 
-        otp = serializer.validated_data["code"]
-        card = self.get_object()
+    # @action(
+    #     detail=True,
+    #     methods=["post"],
+    #     url_path="verify",
+    #     serializer_class=CardVerifySerializer
+    #     )
+    # def verify(self, request, pk=None):
+    #     serializer = CardVerifySerializer(data=request.data)
+    #     serializer.is_valid(raise_exception=True)
 
-        if card.is_verified:
-            return Response({"detail": "Card is already verified."}, status=400)
+    #     otp = serializer.validated_data["code"]
+    #     card = self.get_object()
 
-        if otp == card.verification_code:
-            card.is_verified = True
-            card.verification_code = None
-            card.save()
-            return Response({"detail": "Card verified successfully."}, status=200)
+    #     if card.is_verified:
+    #         return Response({"detail": "Card is already verified."}, status=400)
 
-        return Response({"detail": "Invalid verification code."}, status=400)
+    #     if otp == card.verification_code:
+    #         card.is_verified = True
+    #         card.verification_code = None
+    #         card.save()
+    #         return Response({"detail": "Card verified successfully."}, status=200)
+
+    #     return Response({"detail": "Invalid verification code."}, status=400)

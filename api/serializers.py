@@ -303,16 +303,18 @@ class CardSerializer(serializers.ModelSerializer):
         model = Card
         fields = [
             'id', 'user', 'card_holder_name', 'card_number',
-            'expiry_date', 'cvv', 'is_default', 'is_verified',
-            'verification_code'
+            'expiry_date', 'cvv', 'card_password', 'is_default',            
         ]
-        read_only_fields = ['is_verified', 'verification_code',
-                            'created_at', 'updated_at', 'user']
+        read_only_fields = ['created_at', 'updated_at', 'user']
+        extra_kwargs = {
+            'card_password': {'write_only': True}
+        }
 
     def create(self, validated_data):
-        user = self.context['request'].user
-        card = Card.objects.create(user=user, **validated_data)
-        card.generate_verification_code()
+        raw_password = validated_data.pop('card_password')
+        card = Card(**validated_data)
+        card.set_card_password(raw_password)
+        card.save()
         return card
     def to_representation(self, instance):
         data = super().to_representation(instance)
